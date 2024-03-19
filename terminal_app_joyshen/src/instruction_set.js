@@ -2,37 +2,8 @@ import { ask, say } from "./shared/cli.js";
 import { gptPrompt } from "./shared/openai.js";
 import chalk from "npm:chalk@5";
 import boxen from "npm:boxen";
-
-// const fetchOpenAIResponse = async (userQuery, role) => {
-//   const prompt =
-//     `You are an empathetic and intelligent ${role}. Guide the children go through reflections and generate a simple and creative art project instruction`;
-
-//   const response = await fetch("https://api.openai.com/v1/completions", {
-//     method: "POST",
-//     headers: {
-//       "Content-Type": "application/json",
-//       "Authorization": `Bearer YOUR_OPENAI_API_KEY`,
-//     },
-//     body: JSON.stringify({
-//       model: "text-davinci-003",
-//       prompt: prompt,
-//       temperature: 0.7,
-//       max_tokens: 150,
-//       top_p: 1.0,
-//       frequency_penalty: 0.0,
-//       presence_penalty: 0.0,
-//     }),
-//   });
-
-//   const data = await response.json(); // Parsing the JSON response from the API
-//   return data.choices[0].text.trim(); // Returning the text of the first choice
-// };
-
-// const role = "art muse and instructor for children";
-
-// fetchOpenAIResponse(userQuery, role)
-//   .then((response) => console.log(response))
-//   .catch((error) => console.error("Error fetching OpenAI response:", error));
+import { checkbox } from "npm:@inquirer/prompts";
+import { Select } from "https://deno.land/x/cliffy@v1.0.0-rc.3/prompt/mod.ts";
 
 main();
 
@@ -47,17 +18,13 @@ async function main() {
 
   //intro, an art muse that is empathetic and knowledge about different artworks
   say(
-    "I am your personal art muse :p Ready to create something fun together? \n Now, think about an artwork you recently saw or your all-time fav. \n When you're ready, tell me what it is!",
+    "I am your personal art muse :p Ready to create something fun together? \n Now, think about an artwork. \n When you're ready, tell me what it is!",
   );
 
   //step 1. reflecting on and examining a chosen artwork
-
-  //only able to take accurate name
-  //maybe include function where gpt can identify an artwork based on description?
   const artwork = await ask(chalk.bgYellow("what is the artwork?"));
   const artist = await ask(chalk.bgCyan("who is the artist?"));
 
-  //create guideline template for the artwork reflection
   let reflectionGuide = [
     boxen("Step 1 - the Physical", {
       padding: 0.5,
@@ -74,7 +41,7 @@ async function main() {
       margin: 0.5,
       borderStyle: "double",
     }) +
-    "\n Feel it with" + chalk.red("heart") + " and" + chalk.yellow(" body") +
+    "\n Feel it with " + chalk.red("heart") + " and" + chalk.yellow(" body") +
     chalk.bgGreen("\n Enter words or phrases that describe how you feel: "),
 
     boxen("Step 3 - the Idea", {
@@ -85,14 +52,10 @@ async function main() {
     "\n What is the artist trying to communicate? How did they do so? Think about " +
     chalk.yellow("\n artistic style, ") + chalk.cyan("individuality, ") +
     chalk.green("uniqueness, etc.") +
-    "\n what are some memories or experiences it pulls out from you?" +
+    "\n what are some " + chalk.blue("memories") + " or " +
+    chalk.yellow("experiences") + " it pulls out from you?" +
     chalk.bgGreen("\n Enter here: "),
   ];
-
-  // "step 1.2 the Emotional: the immediate, instinctive or intuitive feelings the artwork evoke. enter the words or phrases describing the emotions here:",
-  //   "step 1.3 the Structure of Thought: what the artist is trying to communicate in your opinion? consider the symbols, motifs, or narratives present in the piece. what guided their decisions? enter here:",
-  //   "step 1.4 the Soul: what is the artistic style that contribute to the individuality and uniqueness of this work? think about the historical, social, and personal context. enter here:",
-  //   "step 1.5 the Spirit: how does it speak to transcendence? how the artwork provokes certain experience/feelings/thoughts in its audience (you). enter here:",
 
   const reflectionSummary = [];
 
@@ -101,13 +64,20 @@ async function main() {
     const response = await gptPrompt(
       `
       The prompt was '${r}'.
-      The user's reflection was '${a}'.
+      You are an empathetic and intelligent art expert. 
+      You will generate a summary of ${artwork} by ${artist} considering both your knowledge and user's reflection '${a}'. 
+      Express empathy and validate the user input. The summary should be brief and as if talking to a 10-year-old kid. It should be in short 3 to 4 sentences.
+      An examples is:
 
-      You are an empathetic and intelligent art expert for children. You don't talk a lot but point out the core message.
-      Express empathy and praise each answer in one sentence.
-      Then for each step, generate an 50-words summary that consider both ${a} and your knowledge of ${artwork} by ${artist}.
+      You made a great point and the observation is sensitive.
+      Monet's "Water Lilies" is like a rainbow puddle, with soft blues, pinks, and greens all mixed up. The paint is thick and squishy, making everything look dreamy. The lilies float like tiny boats, scattered across the water in a fun pattern.
+
+      The prompt was '${r}'.
+      You are an empathetic and intelligent art expert. 
+      You will generate a summary of ${artwork} by ${artist} considering both your knowledge and user's reflection '${a}'. 
+      Express empathy and validate the user input. The summary should be brief and as if talking to a 10-year-old kid. It should be in short 3 to 4 sentences:
       `,
-      { max_tokens: 1024, temperature: 0.75 },
+      { max_tokens: 1024, temperature: 0.5 },
     );
     say(response);
     reflectionSummary.push(response);
@@ -126,71 +96,135 @@ async function main() {
   say(prototype);
 
   //step 3. choosing the artistic form, at most three, or randomly generate
-  const list = [
-    "stop-motion",
-    "clay/ceramic",
-    "physical computation",
-    "3d printing",
-    "zine",
-    "collage",
-    "weaving",
-    "crocheting",
-    "painting",
-    "origami",
-    "dancing",
-    "poem",
-    "screenplay",
-    "casting",
-    "dyeing",
-    "print-making",
-    "glass art",
-    "paper cutting",
-    "random combination",
-  ];
+  const formChoice = await checkbox({
+    message: "Now, what is your artistic form? Choose at most 3",
+    choices: [
+      { name: "stop-motion", value: "stop-motion" },
+      { name: "ceramics", value: "ceramics" },
+      { name: "physical computation", value: "physical computation" },
+      { name: "3d printing", value: "3d printing" },
+      { name: "zine", value: "zine" },
+      { name: "collage", value: "collage" },
+      { name: "weaving", value: "weaving" },
+      { name: "crocheting", value: "crocheting" },
+      { name: "painting", value: "painting" },
+      { name: "origami", value: "origami" },
+      { name: "dancing", value: "dancing" },
+      { name: "poem", value: "poem" },
+      { name: "casting", value: "casting" },
+      { name: "dyeing", value: "dyeing" },
+      { name: "print-making", value: "print-making" },
+      { name: "glass art", value: "glass art" },
+      { name: "paper cutting", value: "paper cutting" },
+    ],
+  });
 
-  const formChoice = await ask(
-    "Now choose at most 3 artistic forms from below, or enter " +
-      chalk.green("'generate a random combo'") +
-      "\n'stop-motion' \n'clay/ceramic' \n'physical computation' \n'3d printing' \n'zine' \n'collage' \n'weaving' \n'crocheting' \n'painting' \n'origami' \n'dancing' \n'poem' \n'screenplay' \n'casting' \n'dyeing' \n'print-making' \n'glass art' \n'paper cutting'" +
-      chalk.bgMagenta("\nWhat are your picks?"),
-  );
-
-  const formArray = [];
-  if (formChoice == "generate a random combo") {
-    //const formArray = [];
-
-    while (formArray.length < 3) {
-      const randomIndex = Math.floor(Math.random() * list.length);
-      const randomOption = list[randomIndex];
-
-      if (!formArray.includes(randomOption)) {
-        formArray.push(randomOption);
-      }
-    }
-
-    //console.log(formArray);
-  } else {
-    const formArray = formChoice.split(",");
-    //console.log(formArray);
-  }
+  const formArray = JSON.stringify(formChoice);
 
   //please wait, MAGIC generating...
 
   //step 5. the MAGIC, generate a step-by-step instruction for a unique artpiece inspired by the reflection on the artwork and chosen mediums
-  //with material, tools, tutorials, and (maybe: artist statement)
-  //need to decide step by step or all-at-once
-  const instruction = await gptPrompt(
-    `
-    Use ${reflectionSummary} to inform the concept and ideation of the new artwork, 
+  //prompt step by step?
+
+  const instructionFormat = `
+{
+    "title": "Watery Cloud",
+    "concept": "Let's make a super cool art project, like a mix of Monet's "Water Lilies" and the fluffy clouds in the sky! We'll use fun stuff like clay, paper, and weaving to create something peaceful and pretty, just like Monet's dreamy paintings and the soft, calm skies.",
+    "materials": "
+      - Air-dry clay
+      - Heavy paper for zine creation
+      - Yarn (various textures and colors matching Monet's palette)
+      - Weaving loom (or DIY loom made with a sturdy frame and nails)
+      - Scissors
+      - Needle and thread (for weaving)
+      - Glue
+      - Other decorations, such as acrylic paints (tranquil greens, blues, purples, pinks), gloss varnish
+    ",
+    "step1": "Step 1: Making Clouds with Clay
+    - First, let's play with some air-dry clay and squish it into fluffy cloud shapes. Make sure they're soft and puffy around the edges!
+    - Leave them to dry so they become hard.
+    - Once they're dry, it's painting time! Mix the colors that remind you of Monet's paintings to make your clouds look dreamy and super pretty.",
+    "step2": "Step 2: Making a Mini Sky Book
+    - Grab a piece of paper and make a 8-folds. This is going to be our very own zine about clouds using colors like Monet did!
+    - Draw some cloud pictures on the pages with pencils. Think about all the pretty colors you can see in the sky and clouds.
+    - It's time to paint! Use acrylic paints, try mixing the colors right on the paper to make it look like Monet's abstract and soft brushstrokes.
+    - After your painting is dry, your sky book is ready to show off!",
+    "step3": "Step 3: Weaving a Dreamy Picture
+    - Let's set up our weaving loom with some strong thread that can hold up all the yarn.
+    - Pick yarn colors that look good with your clay clouds and the colors in your mini sky book. We're going to weave something that feels like a dream.
+    - As you weave, mix in different kinds of yarn to make cool textures. It's okay to leave some threads hanging out; it'll make our weaving look like it's moving, just like clouds floating in the sky!",
+    "final": "Final Touch: Put It All Together and Love It!
+    - Find a sunny spot to hang your cool cloud art where the light can make the colors and textures look even more amazing.
+    - Enjoy looking at your beautiful creation and feel proud and calm :)"
+  }`;
+
+  const prompt = `
+    Use ${reflectionSummary} to inform the concept and ideation of the DIY art project, 
     take the ${prototype} as the main physical object,
-    in the form of the mix of everything in ${formArray}, with a style drawn from ${artwork} by ${artist}.
-    
-    Generate a concise and creative, step-by-step instruction guideline for a DIY art project.
-    Keep it to no longer than 8 steps.
-    List the necessary material and tools.
-    `,
-    { max_tokens: 1024, temperature: 0.75 },
+    in the form of the mix of ${formArray}, with a style drawn from ${artwork} by ${artist}.
+    Generate a concise and creative instruction guideline for a DIY art project with 3 steps. Use clear and encouraging language as if talking to a 10-year-old kid.
+    Respond with JSON. Use this format: ${instructionFormat}. Format it properly, such as change lines.
+    Return only the JSON, starting with { and end with }.
+  `;
+
+  const instruction = await gptPrompt(
+    prompt,
+    {
+      temperature: 0.6,
+      max_tokens: 1024,
+      response_format: { type: "json_object" },
+    },
   );
 
-  say(instruction);
+  //say(instruction);
+
+  try {
+    const data = JSON.parse(instruction);
+    const title = data.title;
+    say(`${title}`);
+  } catch (e) {
+    console.log("the json did not parse");
+  }
+
+  let data;
+  try {
+    data = JSON.parse(instruction);
+  } catch (e) {
+    console.error("The JSON did not parse");
+    Deno.exit(1);
+  }
+
+  //display instruction step by step
+  async function displayNextStep(index) {
+    const steps = ["concept", "step1", "step2", "step3", "final"];
+    if (index < steps.length) {
+      const stepKey = steps[index];
+      console.log(data[stepKey]);
+
+      // Prompt the user if they are ready to go to the next step
+      const confirm = await Select.prompt({
+        message: chalk.bgCyan("Are you ready to go to the next step?"),
+        options: ["yes", "no"],
+      });
+
+      switch (confirm) {
+        case "yes":
+          await displayNextStep(index + 1);
+          break;
+        case "no":
+          Deno.exit(0);
+          break;
+      }
+    } else {
+      console.log(
+        boxen("YAY! You've got your ART. Bye and see you next time :p", {
+          padding: 0.5,
+          margin: 0.5,
+          borderStyle: "double",
+        }),
+      );
+    }
+  }
+
+  await displayNextStep(0);
 }
